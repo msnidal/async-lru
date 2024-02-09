@@ -302,8 +302,16 @@ def _make_wrapper(
     def wrapper(fn: _CBP[_R]) -> _LRUCacheWrapper[_R]:
         origin = fn
 
+        # Handle functools.partial and partialmethod
         while isinstance(origin, (partial, partialmethod)):
             origin = origin.func
+
+        # Check if the function is an instance method and enforce __hash__
+        if hasattr(origin, "__self__"):
+            if not hasattr(origin.__self__.__class__, "__hash__"):
+                raise TypeError(
+                    f"{origin.__self__.__class__.__name__} must implement the __hash__ method to use alru_cache"
+                )
 
         if not asyncio.iscoroutinefunction(origin):
             raise RuntimeError(f"Coroutine function is required, got {fn!r}")
@@ -323,16 +331,14 @@ def alru_cache(
     typed: bool = False,
     *,
     ttl: Optional[float] = None,
-) -> Callable[[_CBP[_R]], _LRUCacheWrapper[_R]]:
-    ...
+) -> Callable[[_CBP[_R]], _LRUCacheWrapper[_R]]: ...
 
 
 @overload
 def alru_cache(
     maxsize: _CBP[_R],
     /,
-) -> _LRUCacheWrapper[_R]:
-    ...
+) -> _LRUCacheWrapper[_R]: ...
 
 
 def alru_cache(
